@@ -44,7 +44,7 @@ def strip_html(s):
 
 
 class _Paras(HTMLParser):
-    """Səhifədən <p> mətnlərini yığır (menyu, footer, script kənarda qalır)."""
+    """Səhifədən mətni yığır: əvvəl <p> abzasları, olmasa uzun mətn parçaları."""
     SKIP = {"script", "style", "nav", "header", "footer", "aside", "noscript", "form", "svg"}
 
     def __init__(self):
@@ -53,6 +53,7 @@ class _Paras(HTMLParser):
         self.in_p = False
         self.buf = []
         self.paras = []
+        self.loose = []
 
     def handle_starttag(self, tag, attrs):
         if tag in self.SKIP:
@@ -71,29 +72,53 @@ class _Paras(HTMLParser):
                 self.paras.append(t)
 
     def handle_data(self, data):
-        if self.in_p and not self.skip:
+        if self.skip:
+            return
+        if self.in_p:
             self.buf.append(data)
+        else:
+            t = re.sub(r"\s+", " ", data).strip()
+            if len(t) >= 80 and t not in self.loose:
+                self.loose.append(t)
+
+
+def _download(url):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (compatible; newsbot/1.0)",
+        "Accept-Language": "az,en;q=0.8",
+    })
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        if urlparse(resp.geturl()).path in ("", "/"):
+            print("  Səhifə ana səhifəyə yönləndi:", url)
+            return ""
+        charset = resp.headers.get_content_charset() or "utf-8"
+        html = resp.read(2_000_000).decode(charset, errors="replace")
+    p = _Paras()
+    p.feed(html)
+    text = " ".join(p.paras)
+    if len(text) < 200:  # <p> az çıxdı, uzun mətn parçalarını da götür
+        text = " ".join(p.paras + p.loose)
+    print(f"  Səhifə oxundu: {len(p.paras)} abzas, {len(p.loose)} parça, {len(text)} simvol")
+    return text[:4000]
 
 
 def fetch_article_text(url):
     """Xəbərin tam səhifəsini açıb mətni çıxarır. Alınmasa boş qaytarır."""
-    try:
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; newsbot/1.0)",
-            "Accept-Language": "az,en;q=0.8",
-        })
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            if urlparse(resp.geturl()).path in ("", "/"):
-                print("  Səhifə ana səhifəyə yönləndi, keçildi:", url)
-                return ""
-            charset = resp.headers.get_content_charset() or "utf-8"
-            html = resp.read(2_000_000).decode(charset, errors="replace")
-        p = _Paras()
-        p.feed(html)
-        return " ".join(p.paras)[:4000]
-    except Exception as ex:
-        print("  Səhifə açılmadı:", url, ex, file=sys.stderr)
-        return ""
+    # lent.az RSS linklərinin sonundakı /1 ana səhifəyə yönləndirir: əvvəl onsuz yoxla
+    candidates = []
+    clean = re.sub(r"/1/?$", "", url)
+    if clean != url:
+        candidates.append(clean)
+    candidates.append(url)
+    for u in candidates:
+        try:
+            text = _download(u)
+        except Exception as ex:
+            print("  Səhifə açılmadı:", u, ex, file=sys.stderr)
+            continue
+        if len(text) >= 200:
+            return text
+    return ""
 
 
 def load_feeds():
