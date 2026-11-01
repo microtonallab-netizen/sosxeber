@@ -1,0 +1,5 @@
+# Format:  RSS_LINKI | Kateqoriya
+# Yalnız RSS-i açıq təqdim edən və istifadəsinə icazə verən mənbələri əlavə et.
+# Linkləri brauzerdə açıb işlədiyini yoxla. Nümunə (öz mənbələrinlə əvəz et):
+# https://example-news.az/rss | Gündəm
+# https://example-news.az/economy/rss | İqtisadiyyat

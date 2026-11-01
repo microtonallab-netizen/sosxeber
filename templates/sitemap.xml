@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>{{ cfg.SITE_URL }}/</loc><lastmod>{{ now }}</lastmod></url>
+{% for c in cats %}<url><loc>{{ cfg.SITE_URL }}/kateqoriya/{{ c.slug }}/</loc></url>
+{% endfor %}{% for p in pages %}<url><loc>{{ cfg.SITE_URL }}/{{ p }}/</loc></url>
+{% endfor %}{% for a in articles %}<url><loc>{{ cfg.SITE_URL }}{{ a.url }}</loc><lastmod>{{ a.published }}</lastmod></url>
+{% endfor %}</urlset>

@@ -1,0 +1,6 @@
+<article class="card">
+  <a class="cat" href="/kateqoriya/{{ a.cat_slug }}/">{{ a.category }}</a>
+  <h2><a href="{{ a.url }}">{{ a.title }}</a></h2>
+  <p>{{ a.description }}</p>
+  <time datetime="{{ a.published }}">{{ a.published | date_az }}</time>
+</article>

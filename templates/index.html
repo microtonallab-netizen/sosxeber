@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block head %}
+<script type="application/ld+json">{{ {"@context":"https://schema.org","@type":"WebSite","name":cfg.SITE_NAME,"url":cfg.SITE_URL} | tojson }}</script>
+{% endblock %}
+{% block content %}
+{% if articles %}
+<section class="lead">
+  {% set a = articles[0] %}
+  <a class="cat" href="/kateqoriya/{{ a.cat_slug }}/">{{ a.category }}</a>
+  <h1><a href="{{ a.url }}">{{ a.title }}</a></h1>
+  <p>{{ a.description }}</p>
+  <time datetime="{{ a.published }}">{{ a.published | date_az }}</time>
+</section>
+<section class="list">
+  {% for a in articles[1:] %}{% include "_card.html" %}{% endfor %}
+</section>
+{% else %}
+<h1>{{ cfg.SITE_NAME }}</h1>
+<p>Hələ xəbər yoxdur. Xəbərlər avtomatik əlavə olunacaq.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block ogtype %}article{% endblock %}
+{% block head %}
+<script type="application/ld+json">{{ {
+ "@context":"https://schema.org","@type":"NewsArticle",
+ "headline": a.title, "description": a.description,
+ "datePublished": a.published, "dateModified": a.published,
+ "inLanguage": cfg.LANG_CODE, "articleSection": a.category,
+ "mainEntityOfPage": cfg.SITE_URL ~ a.url,
+ "author": {"@type":"Organization","name":cfg.SITE_NAME},
+ "publisher": {"@type":"Organization","name":cfg.SITE_NAME,"url":cfg.SITE_URL},
+ "isBasedOn": a.source_url
+} | tojson }}</script>
+<script type="application/ld+json">{{ {
+ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+  {"@type":"ListItem","position":1,"name":"Ana səhifə","item":cfg.SITE_URL ~ "/"},
+  {"@type":"ListItem","position":2,"name":a.category,"item":cfg.SITE_URL ~ "/kateqoriya/" ~ a.cat_slug ~ "/"},
+  {"@type":"ListItem","position":3,"name":a.title}]
+} | tojson }}</script>
+{% endblock %}
+{% block content %}
+<article class="story">
+  <a class="cat" href="/kateqoriya/{{ a.cat_slug }}/">{{ a.category }}</a>
+  <h1>{{ a.title }}</h1>
+  <time datetime="{{ a.published }}">{{ a.published | date_az }}</time>
+  {% for p in a.body %}<p>{{ p }}</p>{% endfor %}
+  {% if a.key_points %}
+  <aside class="points">
+    <h2>Bilmək lazımdır</h2>
+    <ul>{% for k in a.key_points %}<li>{{ k }}</li>{% endfor %}</ul>
+  </aside>
+  {% endif %}
+  <p class="source">Mənbə: <a href="{{ a.source_url }}" rel="nofollow noopener" target="_blank">{{ a.source_name }}</a>. Bu xəbər mənbə əsasında süni intellekt köməyi ilə hazırlanıb.</p>
+</article>
+{% if related %}
+<section class="list related">
+  <h2 class="page">Əlaqəli xəbərlər</h2>
+  {% for a in related %}{% include "_card.html" %}{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

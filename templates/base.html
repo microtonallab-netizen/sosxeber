@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="{{ cfg.LANG_CODE }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page_title }}{% if canonical != "/" %} | {{ cfg.SITE_NAME }}{% endif %}</title>
+<meta name="description" content="{{ page_desc }}">
+<link rel="canonical" href="{{ cfg.SITE_URL }}{{ canonical }}">
+<link rel="alternate" type="application/rss+xml" title="{{ cfg.SITE_NAME }}" href="/rss.xml">
+<meta property="og:site_name" content="{{ cfg.SITE_NAME }}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ page_desc }}">
+<meta property="og:type" content="{% block ogtype %}website{% endblock %}">
+<meta property="og:url" content="{{ cfg.SITE_URL }}{{ canonical }}">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/">{{ cfg.SITE_NAME }}</a>
+    <nav aria-label="Kateqoriyalar">
+      {% for c in nav %}<a href="/kateqoriya/{{ c.slug }}/">{{ c.name }}</a>{% endfor %}
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <div class="wrap">
+    <p><a href="/haqqimizda/">Haqqımızda</a> <a href="/redaksiya-siyaseti/">Redaksiya siyasəti</a> <a href="/elaqe/">Əlaqə</a> <a href="/rss.xml">RSS</a></p>
+    <p class="small">© {{ now[:4] }} {{ cfg.SITE_NAME }}. Xəbərlər mənbələrdən süni intellekt köməyi ilə hazırlanır və mənbəyə istinad edilir.</p>
+  </div>
+</footer>
+</body>
+</html>

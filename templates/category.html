@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page">{{ cat.name }}</h1>
+<section class="list">
+  {% for a in articles %}{% include "_card.html" %}{% endfor %}
+</section>
+{% endblock %}
