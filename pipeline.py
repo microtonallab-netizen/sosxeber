@@ -10,7 +10,7 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import feedparser
 import config
@@ -54,9 +54,15 @@ class _Paras(HTMLParser):
         self.buf = []
         self.paras = []
         self.loose = []
+        self.image = ""
 
     def handle_starttag(self, tag, attrs):
-        if tag in self.SKIP:
+        if tag == "meta":
+            d = {k: (v or "") for k, v in attrs}
+            key = (d.get("property") or d.get("name") or "").lower()
+            if key in ("og:image", "twitter:image") and not self.image:
+                self.image = d.get("content", "").strip()
+        elif tag in self.SKIP:
             self.skip += 1
         elif tag == "p" and not self.skip:
             self.in_p = True
@@ -83,14 +89,16 @@ class _Paras(HTMLParser):
 
 
 def _download(url):
+    """Səhifəni açır, (mətn, şəkil_linki) qaytarır."""
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (compatible; newsbot/1.0)",
         "Accept-Language": "az,en;q=0.8",
     })
     with urllib.request.urlopen(req, timeout=20) as resp:
-        if urlparse(resp.geturl()).path in ("", "/"):
+        final = resp.geturl()
+        if urlparse(final).path in ("", "/"):
             print("  Səhifə ana səhifəyə yönləndi:", url)
-            return ""
+            return "", ""
         charset = resp.headers.get_content_charset() or "utf-8"
         html = resp.read(2_000_000).decode(charset, errors="replace")
     p = _Paras()
@@ -98,27 +106,58 @@ def _download(url):
     text = " ".join(p.paras)
     if len(text) < 200:  # <p> az çıxdı, uzun mətn parçalarını da götür
         text = " ".join(p.paras + p.loose)
-    print(f"  Səhifə oxundu: {len(p.paras)} abzas, {len(p.loose)} parça, {len(text)} simvol")
-    return text[:4000]
+    image = urljoin(final, p.image) if p.image else ""
+    if not image.startswith(("http://", "https://")) or any(
+            w in image.lower() for w in ("logo", "placeholder", "default")):
+        image = ""  # loqo və boş şəkilləri götürmə
+    print(f"  Səhifə oxundu: {len(p.paras)} abzas, {len(text)} simvol, şəkil: {'var' if image else 'yox'}")
+    return text[:4000], image
 
 
-def fetch_article_text(url):
-    """Xəbərin tam səhifəsini açıb mətni çıxarır. Alınmasa boş qaytarır."""
+def fetch_article(url):
+    """Xəbər səhifəsindən (mətn, şəkil) çıxarır. Alınmasa boş qaytarır."""
     # lent.az RSS linklərinin sonundakı /1 ana səhifəyə yönləndirir: əvvəl onsuz yoxla
     candidates = []
     clean = re.sub(r"/1/?$", "", url)
     if clean != url:
         candidates.append(clean)
     candidates.append(url)
+    best_text, best_image = "", ""
     for u in candidates:
         try:
-            text = _download(u)
+            text, image = _download(u)
         except Exception as ex:
             print("  Səhifə açılmadı:", u, ex, file=sys.stderr)
             continue
-        if len(text) >= 200:
-            return text
-    return ""
+        if len(text) > len(best_text):
+            best_text = text
+        best_image = best_image or image
+        if len(best_text) >= 200 and best_image:
+            break
+    return best_text, best_image
+
+
+def backfill_images(limit=10):
+    """Şəkli olmayan köhnə xəbərlərə şəkil əlavə edir (hər dəfə ən çox `limit` dənə)."""
+    done = 0
+    for p in sorted(glob.glob(os.path.join(CONTENT, "*.json"))):
+        if done >= limit:
+            break
+        try:
+            with open(p, encoding="utf-8") as f:
+                art = json.load(f)
+        except Exception:
+            continue
+        if "image" in art or not art.get("source_url"):
+            continue
+        _, image = fetch_article(art["source_url"])
+        art["image"] = image
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(art, f, ensure_ascii=False, indent=2)
+        done += 1
+        time.sleep(1)
+    if done:
+        print("Köhnə xəbərlərə şəkil yoxlandı:", done)
 
 
 def load_feeds():
@@ -192,6 +231,7 @@ def main():
         print("feeds.txt boşdur. RSS linklərini əlavə et.")
         return
     client = make_client()
+    backfill_images()
     seen = known_ids()
     created = 0
 
@@ -215,14 +255,13 @@ def main():
             raw = strip_html(
                 (e.get("content") or [{}])[0].get("value") or e.get("summary", "")
             )
-            if len(raw) < 200:  # RSS qısadır, tam səhifəni açıb mətni götür
-                tries += 1
-                if tries > 15:  # bir dəfəyə çox səhifə açma
-                    break
-                full = fetch_article_text(link)
-                time.sleep(1)
-                if len(full) > len(raw):
-                    raw = full
+            tries += 1
+            if tries > 15:  # bir dəfəyə çox səhifə açma
+                break
+            page_text, image = fetch_article(link)  # tam mətn və şəkil üçün səhifəni aç
+            time.sleep(1)
+            if len(raw) < 200 and len(page_text) > len(raw):
+                raw = page_text
             if len(raw) < 200:
                 print("Qısa mətn, keçildi:", len(raw), "simvol", link)
                 continue
@@ -244,6 +283,7 @@ def main():
                 "category": category,
                 "source_name": source_name,
                 "source_url": link,
+                "image": image,
                 "published": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "status": "draft" if config.REVIEW_MODE else "published",
             }
