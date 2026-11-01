@@ -9,7 +9,7 @@ LANG_NAME = "Azərbaycan dili"
 
 # AI xidməti: "gemini" (pulsuz planı var) və ya "claude" (pulludur)
 AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL") or "gemini-3.5-flash-lite"
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5")
 
 # Hər işləmədə maksimum yeni xəbər və hər lentdən maksimum xəbər.
