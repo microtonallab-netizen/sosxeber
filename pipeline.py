@@ -7,7 +7,10 @@ import os
 import re
 import sys
 import time
+import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 import feedparser
 import config
@@ -38,6 +41,59 @@ JSON formatı:
 def strip_html(s):
     s = re.sub(r"<[^>]+>", " ", s or "")
     return re.sub(r"\s+", " ", s).strip()
+
+
+class _Paras(HTMLParser):
+    """Səhifədən <p> mətnlərini yığır (menyu, footer, script kənarda qalır)."""
+    SKIP = {"script", "style", "nav", "header", "footer", "aside", "noscript", "form", "svg"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.skip = 0
+        self.in_p = False
+        self.buf = []
+        self.paras = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.SKIP:
+            self.skip += 1
+        elif tag == "p" and not self.skip:
+            self.in_p = True
+            self.buf = []
+
+    def handle_endtag(self, tag):
+        if tag in self.SKIP and self.skip:
+            self.skip -= 1
+        elif tag == "p" and self.in_p:
+            self.in_p = False
+            t = re.sub(r"\s+", " ", "".join(self.buf)).strip()
+            if len(t) >= 60 and t not in self.paras:
+                self.paras.append(t)
+
+    def handle_data(self, data):
+        if self.in_p and not self.skip:
+            self.buf.append(data)
+
+
+def fetch_article_text(url):
+    """Xəbərin tam səhifəsini açıb mətni çıxarır. Alınmasa boş qaytarır."""
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; newsbot/1.0)",
+            "Accept-Language": "az,en;q=0.8",
+        })
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            if urlparse(resp.geturl()).path in ("", "/"):
+                print("  Səhifə ana səhifəyə yönləndi, keçildi:", url)
+                return ""
+            charset = resp.headers.get_content_charset() or "utf-8"
+            html = resp.read(2_000_000).decode(charset, errors="replace")
+        p = _Paras()
+        p.feed(html)
+        return " ".join(p.paras)[:4000]
+    except Exception as ex:
+        print("  Səhifə açılmadı:", url, ex, file=sys.stderr)
+        return ""
 
 
 def load_feeds():
@@ -119,7 +175,9 @@ def main():
             break
         parsed = feedparser.parse(url)
         source_name = strip_html(parsed.feed.get("title", "")) or url
+        print("Lent:", url, "->", len(parsed.entries), "yazı", parsed.get("bozo_exception", ""))
         taken = 0
+        tries = 0
         for e in parsed.entries:
             if created >= config.MAX_PER_RUN or taken >= config.PER_FEED:
                 break
@@ -132,7 +190,16 @@ def main():
             raw = strip_html(
                 (e.get("content") or [{}])[0].get("value") or e.get("summary", "")
             )
-            if len(raw) < 200:  # çox qısa mətndən keyfiyyətli xəbər çıxmır
+            if len(raw) < 200:  # RSS qısadır, tam səhifəni açıb mətni götür
+                tries += 1
+                if tries > 15:  # bir dəfəyə çox səhifə açma
+                    break
+                full = fetch_article_text(link)
+                time.sleep(1)
+                if len(full) > len(raw):
+                    raw = full
+            if len(raw) < 200:
+                print("Qısa mətn, keçildi:", len(raw), "simvol", link)
                 continue
             try:
                 data = rewrite(client, strip_html(e.get("title", "")), raw[:4000])
