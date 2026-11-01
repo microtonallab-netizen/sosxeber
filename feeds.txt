@@ -2,4 +2,4 @@
 # Yalnız RSS-i açıq təqdim edən və istifadəsinə icazə verən mənbələri əlavə et.
 # Linkləri brauzerdə açıb işlədiyini yoxla. Nümunə (öz mənbələrinlə əvəz et):
 # https://www.milli.az/rss/society.rss | Cəmiyyət
-# https://www.milli.az/rss/culture.rss | Mədəniyyət
+# https://lent.az/rss | Xeberler
