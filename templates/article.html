@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block ogtype %}article{% endblock %}
 {% block head %}
-<script type="application/ld+json">{{ {
+{% if a.image %}<meta property="og:image" content="{{ a.image }}">
+<meta name="twitter:image" content="{{ a.image }}">{% endif %}
+{% set ld = {
  "@context":"https://schema.org","@type":"NewsArticle",
  "headline": a.title, "description": a.description,
  "datePublished": a.published, "dateModified": a.published,
@@ -10,7 +12,9 @@
  "author": {"@type":"Organization","name":cfg.SITE_NAME},
  "publisher": {"@type":"Organization","name":cfg.SITE_NAME,"url":cfg.SITE_URL},
  "isBasedOn": a.source_url
-} | tojson }}</script>
+} %}
+{% if a.image %}{% set _ = ld.update({"image": [a.image]}) %}{% endif %}
+<script type="application/ld+json">{{ ld | tojson }}</script>
 <script type="application/ld+json">{{ {
  "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
   {"@type":"ListItem","position":1,"name":"Ana səhifə","item":cfg.SITE_URL ~ "/"},
@@ -23,6 +27,7 @@
   <a class="cat" href="/kateqoriya/{{ a.cat_slug }}/">{{ a.category }}</a>
   <h1>{{ a.title }}</h1>
   <time datetime="{{ a.published }}">{{ a.published | date_az }}</time>
+  {% if a.image %}<figure class="hero"><img src="{{ a.image }}" alt="{{ a.title }}" referrerpolicy="no-referrer" onerror="this.closest('figure').remove()"><figcaption>Foto: {{ a.source_name }}</figcaption></figure>{% endif %}
   {% for p in a.body %}<p>{{ p }}</p>{% endfor %}
   {% if a.key_points %}
   <aside class="points">
