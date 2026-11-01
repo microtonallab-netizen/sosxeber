@@ -2,3 +2,4 @@
 # Yalnız RSS-i açıq təqdim edən və istifadəsinə icazə verən mənbələri əlavə et.
 # Linkləri brauzerdə açıb işlədiyini yoxla. Nümunə (öz mənbələrinlə əvəz et):
   https://lent.az/rss | Xeberler
+https://son.az/az/rss-category-5 | Şou Biznes
